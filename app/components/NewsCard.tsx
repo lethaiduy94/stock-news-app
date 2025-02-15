@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import Image from 'next/image';
 
 interface NewsItem {
   title: string;
@@ -44,9 +45,11 @@ const NewsCard = ({ news }: { news: NewsItem }) => {
   return (
     <div className="border rounded-lg overflow-hidden shadow-lg">
       {news.urlToImage && (
-        <img 
+        <Image 
           src={news.urlToImage} 
           alt={news.title}
+          width={800}
+          height={400}
           className="w-full h-48 object-cover"
         />
       )}
