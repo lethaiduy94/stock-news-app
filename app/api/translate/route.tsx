@@ -24,11 +24,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ translatedText });
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Translation error:', error);
     return NextResponse.json({ 
       error: 'Translation failed',
-      details: error.message 
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
 }
