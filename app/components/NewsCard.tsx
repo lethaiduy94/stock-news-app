@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { languageNames } from '../type/Type';
 
 interface NewsItem {
   title: string;
