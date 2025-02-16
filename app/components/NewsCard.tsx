@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import Image from 'next/image';
+import { languageNames } from '../type/Type';
 
 interface NewsItem {
   title: string;
@@ -13,28 +13,52 @@ interface NewsItem {
   };
 }
 
+const languages = [
+  { code: 'original', name: 'Original' },
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'ja', name: 'japanese' },
+  { code: 'ko', name: 'Korean' },
+];
+
 const NewsCard = ({ news }: { news: NewsItem }) => {
-  const [isTranslated, setIsTranslated] = useState(false);
-  const [translatedTitle, setTranslatedTitle] = useState('');
-  const [translatedDescription, setTranslatedDescription] = useState('');
+  const [selectedLang, setSelectedLang] = useState('original');
+  const [translations, setTranslations] = useState<Record<string, { title: string; description: string }>>({});
   const [translating, setTranslating] = useState(false);
 
-  const handleTranslate = async () => {
-    if (isTranslated) {
-      setIsTranslated(false);
+  // Reset states when news changes
+  useEffect(() => {
+    setSelectedLang('original');
+    setTranslations({});
+    setTranslating(false);
+  }, [news]);
+
+  const handleLanguageChange = async (langCode: string) => {
+    if (langCode === 'original') {
+      setSelectedLang(langCode);
+      return;
+    }
+
+    if (translations[langCode]) {
+      setSelectedLang(langCode);
       return;
     }
 
     setTranslating(true);
     try {
       const [titleRes, descRes] = await Promise.all([
-        axios.post('/api/translate', { text: news.title }),
-        axios.post('/api/translate', { text: news.description })
+        axios.post('/api/translate', { text: news.title, targetLang: langCode }),
+        axios.post('/api/translate', { text: news.description, targetLang: langCode })
       ]);
 
-      setTranslatedTitle(titleRes.data.translatedText);
-      setTranslatedDescription(descRes.data.translatedText);
-      setIsTranslated(true);
+      setTranslations(prev => ({
+        ...prev,
+        [langCode]: {
+          title: titleRes.data.translatedText,
+          description: descRes.data.translatedText
+        }
+      }));
+      setSelectedLang(langCode);
     } catch (error) {
       console.error('Translation error:', error);
     } finally {
@@ -42,44 +66,47 @@ const NewsCard = ({ news }: { news: NewsItem }) => {
     }
   };
 
+  const currentText = selectedLang === 'original' 
+    ? { title: news.title, description: news.description }
+    : translations[selectedLang] || { title: news.title, description: news.description };
+
   return (
     <div className="border rounded-lg overflow-hidden shadow-lg">
       {news.urlToImage && (
-        <Image 
+        <img 
           src={news.urlToImage} 
           alt={news.title}
-          width={800}
-          height={400}
           className="w-full h-48 object-cover"
         />
       )}
       <div className="p-4">
-        <h2 className="font-bold text-xl mb-2">
-          {isTranslated ? translatedTitle : news.title}
-        </h2>
-        <p className="text-gray-700 text-base mb-2">
-          {isTranslated ? translatedDescription : news.description}
-        </p>
+        <h2 className="font-bold text-xl mb-2">{currentText.title}</h2>
+        <p className="text-gray-700 text-base mb-2">{currentText.description}</p>
         <div className="flex justify-between items-center text-sm text-gray-500">
           <span>{news.source.name}</span>
           <span>{new Date(news.publishedAt).toLocaleDateString()}</span>
         </div>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex gap-2 items-center">
           <a 
             href={news.url} 
             target="_blank" 
             rel="noopener noreferrer"
             className="inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
-            Xem thêm
+            Read More
           </a>
-          <button
-            onClick={handleTranslate}
+          <select
+            value={selectedLang}
+            onChange={(e) => handleLanguageChange(e.target.value)}
             disabled={translating}
-            className="inline-block bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-green-300"
+            className="border rounded px-3 py-2 bg-white"
           >
-            {translating ? 'Đang dịch...' : isTranslated ? 'Bản gốc' : 'Dịch'}
-          </button>
+            {languages.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {translating ? 'Tranlating...' : lang.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </div>

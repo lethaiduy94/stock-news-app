@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+const languageNames = {
+  vi: 'Vietnamese',
+  zh: 'Chinese',
+  ja: 'Japanese',
+  ko: 'Korean'
+};
 
 export async function POST(request: Request) {
   if (!process.env.GEMINI_API_KEY) {
@@ -10,13 +17,17 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { text } = await request.json();
+    const { text, targetLang } = await request.json();
     
-    if (!text) {
-      return NextResponse.json({ error: 'Text is required' }, { status: 400 });
+    if (!text || !targetLang) {
+      return NextResponse.json({ error: 'Text and target language are required' }, { status: 400 });
     }
 
-    const prompt = `Translate this text to Vietnamese, maintaining the original meaning and tone: "${text}"`;
+    if (!(targetLang in languageNames)) {
+      return NextResponse.json({ error: 'Invalid target language' }, { status: 400 });
+    }
+
+    const prompt = `Translate this text to ${languageNames[targetLang as keyof typeof languageNames]}, maintaining the original meaning and tone: "${text}"`;
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -24,11 +35,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ translatedText });
     
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Translation error:', error);
     return NextResponse.json({ 
       error: 'Translation failed',
-      details: error instanceof Error ? error.message : String(error)
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
